@@ -1,101 +1,181 @@
-import Image from "next/image";
+'use client';
+
+import { primary, tertiary, textColor, textContraste, textHighlight } from './colors.js';
+import { useState } from 'react';
+import { db } from "../firebaseConfig.js";
+import { collection, getDocs } from "firebase/firestore";
+import Gauge from './components/gauge.jsx';
+import localFont from 'next/font/local';
+
+const FeelingPassionate = localFont({
+  src: [
+    {
+      path: '../../public/fonts/Feeling-passionate.otf',
+      weight: '400',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-feeling-passionate',
+});
+
+function getMainDomain(url) {
+  try {
+    // Agrega 'http://' si falta, para que el objeto URL pueda interpretar la URL
+    const parsedUrl = new URL(url.startsWith("http") ? url : `http://${url}`);
+    // Obtén el nombre del dominio sin subdominios
+    const domainParts = parsedUrl.hostname.split('.').filter(part => part !== 'www');
+    return domainParts.length > 1 ? domainParts[domainParts.length - 2] : domainParts[0];
+  } catch (error) {
+    return null; // Retorna null si la URL no es válida
+  }
+}
+
+function isValidURL(url) {
+  try {
+    const parsedUrl = new URL(url.startsWith("http") ? url : `http://${url}`);
+    return parsedUrl.hostname.includes('.');
+  } catch (error) {
+    return false;
+  }
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [inputValue, setInputValue] = useState('');
+  const [inputStyle, setInputStyle] = useState(styles.input);
+  const [gaugeValue, setGaugeValue] = useState(50); // Valor inicial del medidor
+  const [loading, setLoading] = useState(false); // Estado de carga
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
+  const handleSubmit = async () => {
+    if (!isValidURL(inputValue)) {
+      setInputStyle({ ...styles.input, border: '6px solid red' });
+      return;
+    } else {
+      setLoading(true); // Inicia el estado de carga
+      const mainDomain = getMainDomain(inputValue);
+  
+      try {
+        const confiableCollection = collection(db, "confiable");
+        const noConfiableCollection = collection(db, "no-confiable");
+  
+        const confiableSnapshot = await getDocs(confiableCollection);
+        const confiableURLs = confiableSnapshot.docs.map(doc => doc.data().url);
+  
+        const noConfiableSnapshot = await getDocs(noConfiableCollection);
+        const noConfiableURLs = noConfiableSnapshot.docs.map(doc => doc.data().url);
+  
+        if (confiableURLs.includes(mainDomain)) {
+          setInputStyle({ ...styles.input, border: '6px solid green' });
+          setGaugeValue(100); // URL confiable, valor alto
+          console.log("La URL es confiable");
+        } else if (noConfiableURLs.includes(mainDomain)) {
+          setInputStyle({ ...styles.input, border: '6px solid red' });
+          setGaugeValue(0); // URL no confiable, valor bajo
+          console.log("La URL no es confiable");
+        } else {
+          setInputStyle(styles.input);
+          setGaugeValue(50); // URL no encontrada, valor neutro
+          console.log("La URL no se encuentra en la base de datos");
+        }
+      } catch (error) {
+        console.error("Error al consultar Firestore: ", error);
+      } finally {
+        setLoading(false); // Finaliza el estado de carga
+      }
+    }
+  };
+
+  return (
+    <div style={styles.mosaicBackground}>
+      <div style={styles.safeAreaView} className={FeelingPassionate.variable}>
+        <h1 style={styles.titleText}>
+          <b style={styles.highlightWord}>F</b>ake
+          <b style={styles.highlightWord}>O</b>ut
+        </h1>
+        <h1 style={styles.projectTitle}>VeriVerify</h1>
+
+        {/* Campo de entrada debajo de los títulos */}
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="link del artículo aquí"
+          style={inputStyle}
+        />
+        <button onClick={handleSubmit} style={styles.button}>Verificar URL</button>
+        <Gauge value={gaugeValue} loading={loading} />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
+
+const styles = {
+  mosaicBackground: {
+    backgroundColor: tertiary, /* Color de fondo */
+    backgroundImage: 'url("images/mosaic.svg")', /* Ruta del archivo SVG */
+    backgroundRepeat: 'repeat', /* Repite el SVG en un patrón de mosaico */
+    backgroundSize: '100px 50px', /* Ajusta el tamaño de cada "mosaico" */
+    width: '100svw',
+    height: '100svh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  safeAreaView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 'min(420px, 80%)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+
+  titleText: {
+    fontSize: '2.5rem',
+    color: textColor,
+    fontWeight: 'bold',
+    fontFamily: `var(--font-feeling-passionate), sans-serif`,
+  },
+
+  projectTitle: {
+    fontSize: '5rem',
+    color: textColor,
+    fontWeight: 'bold',
+    marginBottom: '1rem',
+    fontFamily: `var(--font-feeling-passionate), sans-serif`,
+  },
+
+  highlightWord: {
+    color: textHighlight,
+  },
+
+  input: {
+    padding: '10px',
+    fontSize: '1rem',
+    borderRadius: '32px',
+    border: '6px solid transparent', /* Borde transparente */
+    outline: 'none',
+    color: textContraste,
+    backgroundColor: 'transparent', /* Fondo transparente para mostrar el gradiente */
+    width: '100%',
+    maxWidth: '300px',
+    marginBlock: '1rem',
+    textAlign: 'center',
+    backgroundImage: `linear-gradient(${primary}, ${primary}), linear-gradient(127deg, ${primary}, ${tertiary})`,
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'padding-box, border-box',
+  },
+  button: {
+    padding: '10px 20px',
+    fontSize: '1rem',
+    borderRadius: '32px',
+    cursor: 'pointer',
+    backgroundColor: primary,
+    color: '#fff',
+    border: 'none',
+    outline: 'none',
+    marginBlock: '1rem',
+  }
+};
