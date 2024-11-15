@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 
 export default function Gauge({ value, loading }) {
   const [displayValue, setDisplayValue] = useState(value);
+  const [trueSelected, setTrueSelected] = useState(false);
+  const [falseSelected, setFalseSelected] = useState(false);
 
   useEffect(() => {
     let interval;
@@ -12,6 +14,16 @@ export default function Gauge({ value, loading }) {
       }, 300);
     } else {
       // Fijar la aguja en el valor final cuando deja de cargar
+      const trueLabel = document.getElementById("trueLabel");
+      const falseLabel = document.getElementById("falseLabel");
+      if (value > 90) {
+        setTrueSelected(true)
+      } else if (value < 10) {
+        setFalseSelected(true)
+      } else {
+        setTrueSelected(false)
+        setFalseSelected(false)
+      }
       setDisplayValue(value);
       clearInterval(interval);
     }
@@ -27,11 +39,11 @@ export default function Gauge({ value, loading }) {
     <div style={styles.gaugeContainer}>
       <div style={styles.gauge}>
         <div style={{ ...styles.needle, transform: `rotate(${calculateRotation(displayValue)}deg)` }} />
-        <div style={styles.labels}>
-          <span style={styles.falseLabel}>FALSO</span>
-          <span style={styles.trueLabel}>VERDAD</span>
-        </div>
       </div>
+      <div style={styles.labels}>
+          <span id="falseLabel" style={falseSelected ? styles.labelSelected : styles.label}>FALSO</span>
+          <span id="trueLabel" style={trueSelected ? styles.labelSelected : styles.label}>VERDAD</span>
+        </div>
     </div>
   );
 }
@@ -67,15 +79,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     width: '100%',
-    position: 'absolute',
-    top: '110px',
   },
-  falseLabel: {
+  label: {
+    color: 'grey',
+    fontWeight: 'bold',
+    transition: '0.3s',
+    fontSize: '16px', 
+  },
+  labelSelected: {
     color: 'black',
     fontWeight: 'bold',
-  },
-  trueLabel: {
-    color: 'black',
-    fontWeight: 'bold',
-  },
+    transition: '0.3s',
+    fontSize: '18px',
+  }
 };
